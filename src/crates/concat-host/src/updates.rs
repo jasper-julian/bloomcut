@@ -42,10 +42,16 @@ pub const REPO: &str = "jasper-julian/bloomcut";
 /// come back from, so the earliest one offered.
 pub const FIRST_SWITCHABLE: Version = Version::new(0, 2, 5);
 
-/// GitHub's list of the repository's releases, newest first. A hundred
-/// covers years of releases at this pace.
-const RELEASES_URL: &str =
-    "https://api.github.com/repos/jasper-julian/bloomcut/releases?per_page=100";
+/// The site BloomCut is published on: its download page is `/bloomcut`.
+pub const SITE: &str = "https://bloom.bloomaigc.com";
+
+/// The update feed: the newest release, its installer's size and digest.
+/// Served by the site from the TOS bucket the installer is kept in, so a
+/// check never leaves China and never meets GitHub's rate limit.
+pub const FEED_URL: &str = "https://bloom.bloomaigc.com/api/v1/bloom/bloomcut/latest";
+
+/// The installer's name in the feed's folder, and on disk once fetched.
+const SETUP_FILE: &str = "BloomCut-Setup.exe";
 
 /// What a download that was stopped says.
 pub const CANCELLED: &str = "the download was cancelled";
@@ -114,6 +120,9 @@ pub struct Release {
     /// The day it was published, `2026-09-24`; empty when GitHub did not
     /// say.
     pub published: String,
+    /// Its Windows installer, when the feed names it: then no manifest is
+    /// fetched for it.
+    pub package: Option<Package>,
 }
 
 /// Reads GitHub's answer to the releases request: the stable releases from
@@ -155,6 +164,7 @@ pub fn releases_from_json(json: &str) -> Result<Vec<Release>, String> {
                 version,
                 tag: tag.to_owned(),
                 published,
+                package: None,
             })
         })
         .collect();
@@ -174,9 +184,56 @@ fn github_message(value: &serde_json::Value) -> String {
         )
 }
 
-/// Asks GitHub for the releases; see [`releases_from_json`].
+/// Reads the site's feed: the one newest release, with its installer.
+pub fn releases_from_feed(json: &str) -> Result<Vec<Release>, String> {
+    let value: serde_json::Value = serde_json::from_str(json)
+        .map_err(|error| format!("the update feed does not read as JSON: {error}"))?;
+    let text = |name: &str| value.get(name).and_then(serde_json::Value::as_str);
+    let Some(version) = text("version").and_then(Version::parse) else {
+        // The site says why in `detail` when it has nothing to offer.
+        return match text("detail") {
+            Some(detail) => Err(detail.to_owned()),
+            None => Ok(Vec::new()),
+        };
+    };
+    let sha256 = text("sha256").unwrap_or_default().to_lowercase();
+    if sha256.len() != 64 || !sha256.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("the update feed names no digest for the installer".to_owned());
+    }
+    let download = text("download").unwrap_or("/api/v1/bloom/bloomcut/download");
+    let url = if download.starts_with("https://") {
+        download.to_owned()
+    } else {
+        format!("{SITE}{download}")
+    };
+    Ok(vec![Release {
+        version,
+        tag: version.tag(),
+        published: text("published")
+            .unwrap_or_default()
+            .chars()
+            .take(10)
+            .collect(),
+        package: Some(Package {
+            file: SETUP_FILE.to_owned(),
+            url,
+            bytes: value
+                .get("bytes")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0),
+            sha256,
+        }),
+    }])
+}
+
+/// Asks the site for the newest release; see [`releases_from_feed`]. A site
+/// that has published nothing yet answers 404, which is no releases.
 pub fn fetch_releases() -> Result<Vec<Release>, String> {
-    releases_from_json(&get_text(RELEASES_URL)?)
+    match get_text(FEED_URL) {
+        Ok(json) => releases_from_feed(&json),
+        Err(error) if error.contains("404") => Ok(Vec::new()),
+        Err(error) => Err(error),
+    }
 }
 
 /// Where this build sits among the releases.
@@ -422,6 +479,12 @@ pub fn manifest_url(tag: &str) -> String {
 
 /// The package of `kind` for this machine in `release`, from its manifest.
 pub fn fetch_package(release: &Release, kind: PackageKind) -> Result<Package, String> {
+    if let Some(package) = &release.package {
+        return match kind {
+            PackageKind::Setup => Ok(package.clone()),
+            _ => Err("BloomCut is published as a Windows installer only".to_owned()),
+        };
+    }
     package_from_manifest(
         &get_text(&manifest_url(&release.tag))?,
         std::env::consts::OS,
@@ -714,7 +777,7 @@ fn detach(command: &mut Command) -> Result<(), String> {
 /// One GET, read whole as text. GitHub wants a user agent and says so with
 /// a 403 otherwise.
 fn get_text(url: &str) -> Result<String, String> {
-    let agent = format!("Concat/{}", Version::current());
+    let agent = format!("BloomCut/{}", Version::current());
     let response = crate::net::get(
         url,
         std::time::Duration::from_secs(20),
@@ -921,5 +984,36 @@ mod tests {
     fn the_updates_folder_hangs_off_the_data_directory() {
         let dirs = AppDirs::under(Path::new("/tmp/concat-updates-test"));
         assert_eq!(folder(&dirs), Path::new("/tmp/concat-updates-test/updates"));
+    }
+
+    /// The site's feed is one release with its installer, the download
+    /// address made whole; a feed without a digest is refused.
+    #[test]
+    fn the_feed_is_the_newest_release_with_its_installer() {
+        let feed = r#"{"version":"0.3.0","bytes":1624968916,"sha256":"627C6C539F2B231A8F47A601FDE9A2694868BECB8ABA698176B72AE5573556B6","notes":"","published":"2026-11-20T10:00:00+00:00","source":"","download":"/api/v1/bloom/bloomcut/download"}"#;
+        let releases = releases_from_feed(feed).expect("reads");
+        assert_eq!(releases.len(), 1);
+        let release = &releases[0];
+        assert_eq!(release.version, Version::new(0, 3, 0));
+        assert_eq!(release.tag, "v0.3.0");
+        assert_eq!(release.published, "2026-11-20");
+        let package = fetch_package(release, PackageKind::Setup).expect("the installer");
+        assert_eq!(
+            package.url,
+            "https://bloom.bloomaigc.com/api/v1/bloom/bloomcut/download"
+        );
+        assert_eq!(package.file, "BloomCut-Setup.exe");
+        assert_eq!(package.bytes, 1_624_968_916);
+        assert!(package.sha256.starts_with("627c6c53"));
+        assert!(fetch_package(release, PackageKind::Msi).is_err());
+
+        assert!(releases_from_feed(r#"{"version":"0.3.0","sha256":"nope"}"#).is_err());
+        assert_eq!(
+            releases_from_feed(r#"{"detail":"BloomCut 下载尚未开启"}"#).unwrap_err(),
+            "BloomCut 下载尚未开启"
+        );
+        assert!(
+            standing(Version::new(0, 2, 11), &releases) == Standing::Behind(Version::new(0, 3, 0))
+        );
     }
 }

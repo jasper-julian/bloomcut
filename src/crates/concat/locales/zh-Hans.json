@@ -7,6 +7,7 @@
   "assistant.clear": "清空对话",
   "assistant.model": "大模型设置",
   "assistant.close": "关闭",
+  "lib.updateReminder": "发现新版本 BloomCut {0}：打开 设置 › 版本，点「安装」即可更新。",
   "studio.exportJianying": "导出到剪映",
   "jianying.chooseFolder": "选择剪映的草稿文件夹",
   "jianying.exported": "已导出为剪映草稿「{0}」，打开剪映即可在草稿列表里看到",

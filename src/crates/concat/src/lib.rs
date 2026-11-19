@@ -2890,6 +2890,41 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
         op.done("the window is up");
     }
 
+    // A copy the installer put in place asks the site whether a newer
+    // BloomCut is out, once a launch, on a worker; the answer fills the
+    // Version page and, when there is one, says so. A build from the tree
+    // has nothing an installer could replace, and does not ask.
+    if smoke == Smoke::No
+        && concat_host::updates::installed_as() == Ok(concat_host::updates::PackageKind::Setup)
+    {
+        host::spawn(
+            concat_host::updates::fetch_releases,
+            |studio, _, _, result| {
+                let newer =
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|releases| {
+                            match concat_host::updates::standing(
+                                concat_host::updates::Version::current(),
+                                releases,
+                            ) {
+                                concat_host::updates::Standing::Behind(newer) => Some(newer),
+                                _ => None,
+                            }
+                        });
+                if let Err(error) = &result {
+                    log::info!("update: could not ask the site for the newest release: {error}");
+                }
+                studio.handle(Msg::Settings(SettingsMsg::UpdatesFetched(result)));
+                if let Some(newer) = newer {
+                    log::info!("update: {newer} is out; said so");
+                    studio.notify(&i18n::tf("lib.updateReminder", &[&newer]), false);
+                }
+            },
+        );
+    }
+
     // As far as a smoke run goes: everything the first frame needs exists
     // and has been handed to the window. The exit is the one the event
     // loop's end takes below, for the same reason - the engine's threads

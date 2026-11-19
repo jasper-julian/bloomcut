@@ -209,23 +209,38 @@ mod tests {
         cut.media_id = "m1".into();
         clips.push(Arc::new(cut));
         let captions: [(&str, f64, (usize, usize), RunStyle); 3] = [
-            ("目标稳拿不是问题", 0.5, (2, 4), RunStyle {
-                color: Some("#ffe400".into()),
-                ..RunStyle::default()
-            }),
-            ("普通家庭没有渠道", 3.5, (4, 8), RunStyle {
-                color: Some("#ffe400".into()),
-                font_weight: Some(800.0),
-                font_scale: Some(1.3),
-                stroke_color: Some("#e84820".into()),
-                ..RunStyle::default()
-            }),
-            ("就失业了", 6.5, (0, 4), RunStyle {
-                color: Some("#ffe400".into()),
-                font_weight: Some(900.0),
-                font_scale: Some(1.8),
-                ..RunStyle::default()
-            }),
+            (
+                "目标稳拿不是问题",
+                0.5,
+                (2, 4),
+                RunStyle {
+                    color: Some("#ffe400".into()),
+                    ..RunStyle::default()
+                },
+            ),
+            (
+                "普通家庭没有渠道",
+                3.5,
+                (4, 8),
+                RunStyle {
+                    color: Some("#ffe400".into()),
+                    font_weight: Some(800.0),
+                    font_scale: Some(1.3),
+                    stroke_color: Some("#e84820".into()),
+                    ..RunStyle::default()
+                },
+            ),
+            (
+                "就失业了",
+                6.5,
+                (0, 4),
+                RunStyle {
+                    color: Some("#ffe400".into()),
+                    font_weight: Some(900.0),
+                    font_scale: Some(1.8),
+                    ..RunStyle::default()
+                },
+            ),
         ];
         for (n, (words, start, (from, to), look)) in captions.into_iter().enumerate() {
             let mut title = Clip::blank(format!("t{n}"), "t1", ClipKind::Text, words, start, 2.8);
@@ -234,15 +249,30 @@ mod tests {
                 content: words.into(),
                 font_size: 0.05,
                 stroke_width: 0.004,
-                runs: vec![TextRun { start: from, end: to, style: look }],
+                runs: vec![TextRun {
+                    start: from,
+                    end: to,
+                    style: look,
+                }],
                 ..TextStyle::default()
             });
             clips.push(Arc::new(title));
         }
         let timeline = Timeline {
             id: "tl".into(),
-            video: VideoSettings { width: 1920, height: 1080, rate_num: 30, rate_den: 1, ..VideoSettings::default() },
-            tracks: ["t1", "t3"].map(|id| Track { id: id.into(), ..Track::default() }).to_vec(),
+            video: VideoSettings {
+                width: 1920,
+                height: 1080,
+                rate_num: 30,
+                rate_den: 1,
+                ..VideoSettings::default()
+            },
+            tracks: ["t1", "t3"]
+                .map(|id| Track {
+                    id: id.into(),
+                    ..Track::default()
+                })
+                .to_vec(),
             clips,
             ..Timeline::default()
         };
@@ -250,7 +280,11 @@ mod tests {
             media: vec![MediaItem {
                 id: "m1".into(),
                 path: video.clone(),
-                name: std::path::Path::new(&video).file_name().unwrap().to_string_lossy().into_owned(),
+                name: std::path::Path::new(&video)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
                 duration: Some(10.01),
                 kind: MediaKind::Video,
                 width: Some(1920),
