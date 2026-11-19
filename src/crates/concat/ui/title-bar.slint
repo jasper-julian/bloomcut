@@ -156,6 +156,9 @@ export component TitleBar inherits Rectangle {
     in property <int> keyboard-menu: -1;
     in property <int> keyboard-token;
     callback open-settings();
+    /// The AI assistant's button: opens and closes its card.
+    callback open-assistant();
+    in property <bool> assistant-open;
     /// A view was picked from the add-panel list.
     callback add-pane(kind: PaneKind);
     callback export-clicked();
@@ -283,6 +286,38 @@ export component TitleBar inherits Rectangle {
             HeaderIconButton {
                 glyph: Glyph.settings;
                 clicked => { root.open-settings(); }
+            }
+        }
+
+        if !root.minimal && !root.covered: VerticalLayout {
+            alignment: center;
+            assistant-button := Rectangle {
+                width: assistant-label.width + assistant-icon.width + 24px;
+                height: 24px;
+                border-radius: Theme.r-sm;
+                background: root.assistant-open ? Theme.accent-soft
+                    : assistant-touch.has-hover ? Theme.field-hover : transparent;
+                border-width: 1px;
+                border-color: root.assistant-open ? Theme.accent : Theme.line;
+
+                assistant-icon := Icon {
+                    x: 8px;
+                    y: (parent.height - self.height) / 2;
+                    glyph: Glyph.sparkle;
+                    size: 12px;
+                    tint: Theme.fg;
+                }
+                assistant-label := Text {
+                    x: assistant-icon.x + assistant-icon.width + 5px;
+                    y: (parent.height - self.height) / 2;
+                    text: I18n.t("assistant.title");
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                }
+                assistant-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open-assistant(); }
+                }
             }
         }
 

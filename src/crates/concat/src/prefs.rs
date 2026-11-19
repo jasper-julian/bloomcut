@@ -169,6 +169,32 @@ pub struct Preferences {
     /// by Settings › Shortcuts; resolved in [`crate::keymap`].
     #[serde(default)]
     pub keybinds: BTreeMap<String, String>,
+    /// The AI assistant's language model; see `crate::panes::assistant`.
+    #[serde(default)]
+    pub assistant: AssistantPrefs,
+}
+
+/// The language model the AI assistant talks to: any service that speaks
+/// the OpenAI chat-completions protocol (DeepSeek, Qwen, Kimi, Doubao,
+/// a local Ollama, OpenAI itself).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct AssistantPrefs {
+    /// The API's base URL, up to and including `/v1` where the service has
+    /// one: `https://api.deepseek.com/v1`. `/chat/completions` is added.
+    pub base_url: String,
+    /// The key sent as `Authorization: Bearer`; empty for a local server
+    /// that wants none.
+    pub api_key: String,
+    /// The model's name as the service knows it: `deepseek-chat`.
+    pub model: String,
+}
+
+impl AssistantPrefs {
+    /// Enough is filled in to ask the model something.
+    pub fn is_set(&self) -> bool {
+        !self.base_url.trim().is_empty() && !self.model.trim().is_empty()
+    }
 }
 
 /// The voiceover panel's choices, kept from one take to the next and one

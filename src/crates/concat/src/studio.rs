@@ -806,6 +806,8 @@ pub struct Models {
     pub speech_samples: Rc<VecModel<SharedString>>,
     /// The microphones the voiceover panel lists.
     pub voiceover_devices: Rc<VecModel<SharedString>>,
+    /// The AI assistant's conversation, a line a row.
+    pub assistant_lines: Rc<VecModel<crate::ui::AssistantLine>>,
     pub speech_sample_waves: Rc<VecModel<SharedString>>,
     pub speech_sample_details: Rc<VecModel<SharedString>>,
     /// The Audio page's shelves.
@@ -891,6 +893,7 @@ impl Models {
             speaker_avatars: Rc::new(VecModel::default()),
             speech_samples: Rc::new(VecModel::default()),
             voiceover_devices: Rc::new(VecModel::default()),
+            assistant_lines: Rc::new(VecModel::default()),
             speech_sample_waves: Rc::new(VecModel::default()),
             speech_sample_details: Rc::new(VecModel::default()),
             sounds_mine: Rc::new(VecModel::default()),
@@ -1241,6 +1244,8 @@ pub struct Studio {
     pub meters: crate::meters::MeterFeed,
     /// The voiceover take, while one runs.
     pub voiceover: crate::panes::voiceover::VoiceoverPane,
+    /// The AI assistant's card and its conversation.
+    pub assistant: crate::panes::assistant::AssistantPane,
     /// Every speaker the voice engine offers, in its own order.
     /// The looks the Text page offers; see `presets`.
     pub text_presets: Vec<TextPreset>,
@@ -3169,6 +3174,7 @@ impl Studio {
             source: None,
             meters: crate::meters::MeterFeed::default(),
             voiceover: crate::panes::voiceover::VoiceoverPane::default(),
+            assistant: crate::panes::assistant::AssistantPane::default(),
             text_presets,
             installed_fonts: presets::installed_fonts(&host.dirs),
             system_fonts: Vec::new(),

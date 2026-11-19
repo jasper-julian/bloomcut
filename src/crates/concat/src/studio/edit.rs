@@ -402,6 +402,42 @@ impl Studio {
         }
     }
 
+    /// [`Studio::apply`] for a caller that reads the outcome rather than
+    /// the person - the AI assistant: the edit's view when it is made, the
+    /// sentence the window would show when it is refused, and no toast,
+    /// since the caller says it in its own words.
+    pub fn apply_reporting(
+        &mut self,
+        command: Command,
+    ) -> Result<concat_host::session::EditorView, String> {
+        self.end_burst();
+        let words = command_words(&command);
+        Asked::log(format_args!("edit: {words} (by the assistant)"));
+        self.flush_commit();
+        self.echo = None;
+        self.last_commit = None;
+        let session = self
+            .session
+            .as_mut()
+            .ok_or_else(|| "no project is open".to_owned())?;
+        let chosen = matches!(command, Command::SetTimelineVideo { .. });
+        let before = session.video().color_space;
+        match session.apply(command) {
+            Ok(view) => {
+                let after = session.video().color_space;
+                self.after_change();
+                if !chosen {
+                    self.tell_of_hdr(before, after);
+                }
+                Ok(view)
+            }
+            Err(error) => {
+                log::warn!("edit: {words} was asked for by the assistant and refused: {error}");
+                Err(error)
+            }
+        }
+    }
+
     /// [`Studio::apply`] as one move of an inspector gesture: the same
     /// bookkeeping, but the editor folds it into the gesture's undo step
     /// and the coalescing window stays open for the next move.

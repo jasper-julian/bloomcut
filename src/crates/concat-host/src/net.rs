@@ -161,17 +161,45 @@ pub fn get(
     trust: Trust,
     prepare: &dyn Fn(ureq::Request) -> ureq::Request,
 ) -> Result<ureq::Response, Box<Failure>> {
+    routed(url, &|route| {
+        prepare(agent(route, connect, read, trust).get(url)).call()
+    })
+}
+
+/// A POST of `body` to `url` as JSON, made ready by `prepare` (an
+/// authorization header), and sent the way [`get`] sends: through the
+/// proxy named for it, then directly. A language model's chat endpoint is
+/// what this is for.
+pub fn post_json(
+    url: &str,
+    connect: Duration,
+    read: Duration,
+    trust: Trust,
+    prepare: &dyn Fn(ureq::Request) -> ureq::Request,
+    body: &str,
+) -> Result<ureq::Response, Box<Failure>> {
+    routed(url, &|route| {
+        prepare(agent(route, connect, read, trust).post(url))
+            .set("Content-Type", "application/json")
+            .send_string(body)
+    })
+}
+
+/// Sends through the proxy the environment or the system names for `url`,
+/// and directly when the proxy cannot carry it; see [`get`].
+fn routed(
+    url: &str,
+    call: &dyn Fn(Option<&Route>) -> Result<ureq::Response, ureq::Error>,
+) -> Result<ureq::Response, Box<Failure>> {
     let send = |route: Option<&Route>| {
-        prepare(agent(route, connect, read, trust).get(url))
-            .call()
-            .map_err(|error| {
-                let cause = classify(&error, route.is_some());
-                Box::new(Failure {
-                    error,
-                    cause,
-                    proxy: route.map(|route| route.shown.clone()),
-                })
+        call(route).map_err(|error| {
+            let cause = classify(&error, route.is_some());
+            Box::new(Failure {
+                error,
+                cause,
+                proxy: route.map(|route| route.shown.clone()),
             })
+        })
     };
     let Some(route) = crate::route::for_url(url) else {
         return send(None);

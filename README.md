@@ -1,4 +1,34 @@
 <p align="center">
+  <img src="assets/icons/concat_logo_256.png" alt="Concat 团队版" width="110" />
+</p>
+
+<h1 align="center">Concat 团队版</h1>
+<p align="center">在 <a href="https://github.com/jub0t/Concat">Concat</a> 基础上为口播短视频团队定制：按脚本校对字幕、AI 助手对话剪辑、按规则自动划重点。</p>
+
+<p align="center">
+  <a href="https://github.com/jasper-julian/concat-man/releases/latest/download/Concat-Setup.exe"><img src="assets/team_download_button.svg" alt="下载 Concat 团队版" width="300" /></a>
+</p>
+
+<p align="center">下载链接（可直接发给同事）：<br /><code>https://github.com/jasper-julian/concat-man/releases/latest/download/Concat-Setup.exe</code></p>
+
+### 安装
+
+1. 下载 `Concat-Setup.exe`（约 1.6 GB），双击运行，一路“下一步”。不需要管理员权限。
+2. 如果 Windows 提示“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行**（安装包没有购买代码签名证书）。
+3. 转录模型、配音模型和划重点规则已经内置，装完即可离线使用，不需要再下载。
+4. AI 助手：打开 **设置 › AI 助手**，填写自己的 API 地址、密钥和模型名称，点 **测试连接**。
+
+### 团队版新增
+
+- **按脚本校对字幕**：识别字幕时粘贴口播稿，字幕自动改成稿子里的字，并按稿子的标点断句。
+- **AI 助手**：标题栏 ✦ AI 助手，用对话让大模型直接剪辑当前工程（加字幕、切片段、撤销……），支持任何 OpenAI 兼容接口。
+- **划重点**：规则文件放在 设置 › AI 助手 › 规则 的文件夹里，对助手说“按规则给字幕划重点”即可，一次撤销全部撤回。
+
+---
+
+<sub>以下为上游 Concat 的原始说明。</sub>
+
+<p align="center">
   <img src="https://cdn.jsdelivr.net/gh/jub0t/Concat@main/assets/concat-mark-dark.png" alt="Concat" width="100" />
 </p>
 

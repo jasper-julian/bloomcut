@@ -2104,6 +2104,8 @@ impl Studio {
         self.publish_source(app);
         sync(&models.voiceover_devices, self.voiceover.device_rows());
         app.set_voiceover(self.voiceover.data(self));
+        sync(&models.assistant_lines, self.assistant.line_rows());
+        app.set_assistant(self.assistant.data(self));
         editor.set_recording(self.voiceover.recording());
         editor.set_captions_open(self.captions.open || self.captions.shown);
         editor.set_speech_open(self.speech.open);

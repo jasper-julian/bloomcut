@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Concat contributors
+
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Glyph, Icon } from "../icons.slint";
+import { Button } from "../primitives/modal.slint";
+import { IconButton } from "../primitives/panel.slint";
+
+// The AI assistant: a card that floats over the editor, like the
+// voiceover panel, so the timeline it is changing stays in view.
+//
+// The person types what they want; the language model answers and makes
+// the edits itself (see panes/assistant.rs). Which model, where and with
+// what key is set in Settings > AI assistant, never on the card: the card
+// is for talking. It starts small and grows with the conversation.
+export struct AssistantData {
+    open: bool,
+    /// Settings > AI assistant's fields.
+    base-url: string,
+    api-key: string,
+    model: string,
+    /// An address and a model are filled in.
+    configured: bool,
+    /// Settings' Test connection: 0 not tried, 1 trying, 2 answered, 3
+    /// failed; and what it came to, in words.
+    test-state: int,
+    test-status: string,
+    /// Which rule files the model is given, in words.
+    rules: string,
+    /// What is typed and not yet sent.
+    draft: string,
+    /// A turn is under way: Send is Stop.
+    running: bool,
+}
+
+/// One line of the conversation. `role`: 0 the person, 1 the model, 2 a
+/// tool the model called, 3 an error.
+export struct AssistantLine {
+    role: int,
+    text: string,
+}
+
+export component AssistantPanel inherits Rectangle {
+    in property <AssistantData> data;
+    in property <[AssistantLine]> lines;
+    in property <bool> phone;
+    in property <length> inset-top;
+    in property <length> inset-bottom;
+    in property <length> inset-left;
+    in property <length> inset-right;
+
+    callback closed();
+    /// Settings, at the AI assistant's page.
+    callback open-settings();
+    callback clear();
+    callback draft-edited(text: string);
+    callback send();
+    callback stop();
+
+    visible: root.data.open;
+
+    // The input holds its own copy, seeded from the data: a TextInput
+    // writes to the property it is bound to, which drops the binding. It
+    // is emptied when Rust has taken what was sent.
+    property <string> draft;
+    changed data => {
+        if (root.data.draft == "") {
+            root.draft = "";
+        }
+    }
+
+    // Its size: as wide as a side panel, and as tall as what it holds -
+    // the header, the conversation and the input - up to most of the
+    // window, past which the conversation scrolls.
+    property <length> card-w: root.phone ? root.width - root.inset-left - root.inset-right : 380px;
+    property <length> header-h: 42px;
+    property <length> input-h: input-row.preferred-height + 1px;
+    property <length> talk-h: root.lines.length == 0 ? empty.preferred-height : list.preferred-height;
+    property <length> most-h: root.phone ? root.height * 0.6 : Math.min(600px, root.height - 96px);
+    property <length> card-h: Math.min(root.most-h, root.header-h + root.talk-h + root.input-h);
+
+    // Where it sits on a desk: under the title strip at the right, moved
+    // by however far its header has been dragged, and kept inside the
+    // window.
+    property <length> home-x: root.width - root.card-w - 16px - root.inset-right;
+    property <length> home-y: 48px + root.inset-top;
+    property <length> dx;
+    property <length> dy;
+    property <length> min-dx: 8px - root.home-x;
+    property <length> max-dx: root.width - root.card-w - 8px - root.home-x;
+    property <length> min-dy: 8px - root.home-y;
+    property <length> max-dy: root.height - root.card-h - 8px - root.home-y;
+
+    // The conversation follows its newest line.
+    property <int> count: root.lines.length;
+    changed count => {
+        scroll-timer.running = true;
+    }
+    scroll-timer := Timer {
+        interval: 30ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            flick.content-y = Math.min(0px, flick.height - flick.content-height);
+        }
+    }
+
+    card := Rectangle {
+        x: root.phone ? root.inset-left
+            : root.home-x + Math.max(root.min-dx, Math.min(root.max-dx, root.dx));
+        y: root.phone ? root.height - self.height - root.inset-bottom
+            : root.home-y + Math.max(root.min-dy, Math.min(root.max-dy, root.dy));
+        width: root.card-w;
+        height: root.card-h;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        border-top-left-radius: Theme.r-lg;
+        border-top-right-radius: Theme.r-lg;
+        border-bottom-left-radius: root.phone ? 0 : Theme.r-lg;
+        border-bottom-right-radius: root.phone ? 0 : Theme.r-lg;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: #00000059;
+        clip: true;
+
+        animate height { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+
+        // Swallows presses that land on the card.
+        TouchArea { }
+
+        VerticalLayout {
+            // ── the header, and what drags the card ──────────────────────
+            Rectangle {
+                height: root.header-h;
+
+                if !root.phone: TouchArea {
+                    mouse-cursor: move;
+                    moved => {
+                        if (self.pressed) {
+                            root.dx = Math.max(root.min-dx, Math.min(root.max-dx,
+                                root.dx + self.mouse-x - self.pressed-x));
+                            root.dy = Math.max(root.min-dy, Math.min(root.max-dy,
+                                root.dy + self.mouse-y - self.pressed-y));
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: Theme.pad;
+                    padding-right: 8px;
+                    spacing: 6px;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Icon {
+                            glyph: Glyph.sparkle;
+                            size: 15px;
+                            tint: root.data.running ? Theme.accent : Theme.fg;
+                        }
+                    }
+                    Text {
+                        text: I18n.t("assistant.title");
+                        color: Theme.fg;
+                        font-size: Theme.fs-lg;
+                        font-weight: Theme.weight-title;
+                        vertical-alignment: center;
+                    }
+                    if root.data.running: Text {
+                        text: I18n.t("assistant.working");
+                        color: Theme.accent;
+                        font-size: Theme.fs-sm;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    if root.lines.length > 0: IconButton {
+                        glyph: Glyph.trash;
+                        label: I18n.t("assistant.clear");
+                        clicked => { root.clear(); }
+                    }
+                    IconButton {
+                        glyph: Glyph.close;
+                        label: I18n.t("assistant.close");
+                        clicked => { root.closed(); }
+                    }
+                }
+
+                Rectangle {
+                    y: parent.height - 1px;
+                    height: 1px;
+                    background: Theme.line;
+                }
+            }
+
+            // ── the conversation ─────────────────────────────────────────
+            Rectangle {
+                vertical-stretch: 1;
+
+                // Nothing said yet: what to say, or, with no model set up,
+                // the way to Settings.
+                empty := VerticalLayout {
+                    visible: root.lines.length == 0;
+                    padding: Theme.pad;
+                    spacing: 10px;
+                    alignment: start;
+
+                    Text {
+                        text: root.data.configured ? I18n.t("assistant.empty") : I18n.t("assistant.notSet");
+                        color: Theme.fg-dim;
+                        font-size: Theme.fs;
+                        wrap: word-wrap;
+                    }
+                    if !root.data.configured: HorizontalLayout {
+                        alignment: start;
+                        Button {
+                            label: I18n.t("assistant.openSettings");
+                            glyph: Glyph.settings;
+                            clicked => { root.open-settings(); }
+                        }
+                    }
+                }
+
+                flick := Flickable {
+                    visible: root.lines.length > 0;
+                    content-height: list.preferred-height;
+                    content-width: self.width;
+
+                    list := VerticalLayout {
+                        width: flick.width;
+                        padding: Theme.pad;
+                        spacing: 8px;
+                        alignment: start;
+
+                        for line in root.lines: HorizontalLayout {
+                            alignment: line.role == 0 ? end : stretch;
+
+                            Rectangle {
+                                // Inside the list's padding: any wider, the row ran
+                                // past both edges of the card and cut its words.
+                                max-width: (flick.width - 2 * Theme.pad) * (line.role == 0 ? 0.85 : 1.0);
+                                border-radius: Theme.r;
+                                background: line.role == 0 ? Theme.accent-soft
+                                    : line.role == 3 ? Theme.danger-soft
+                                    : transparent;
+
+                                VerticalLayout {
+                                    padding-left: line.role == 2 ? 2px : 9px;
+                                    padding-right: 9px;
+                                    padding-top: line.role == 2 ? 0px : 6px;
+                                    padding-bottom: line.role == 2 ? 0px : 6px;
+
+                                    Text {
+                                        text: line.role == 2 ? "→ " + line.text : line.text;
+                                        color: line.role == 2 ? Theme.fg-dim : Theme.fg;
+                                        font-size: line.role == 2 ? Theme.fs-sm : Theme.fs;
+                                        font-family: line.role == 2 ? Theme.font-technical : "";
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.line;
+            }
+
+            // ── what is typed, and Send ──────────────────────────────────
+            input-row := HorizontalLayout {
+                padding: 10px;
+                spacing: 8px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    // One line to start, growing with what is typed up to
+                    // about five.
+                    min-height: Math.min(110px, Math.max(30px, input.preferred-height + 12px));
+                    border-radius: Theme.r;
+                    background: Theme.well;
+                    border-width: 1px;
+                    border-color: input.has-focus ? Theme.accent : Theme.line;
+
+                    input := TextInput {
+                        x: 8px;
+                        y: 6px;
+                        width: parent.width - 16px;
+                        height: parent.height - 12px;
+                        text <=> root.draft;
+                        enabled: root.data.configured;
+                        color: Theme.fg;
+                        font-size: Theme.fs;
+                        single-line: false;
+                        wrap: char-wrap;
+                        selection-background-color: Theme.accent;
+                        selection-foreground-color: Theme.on-accent;
+                        edited => { root.draft-edited(self.text); }
+                        // Enter sends; Shift+Enter starts a new line.
+                        key-pressed(event) => {
+                            if (event.text == Key.Return && !event.modifiers.shift) {
+                                if (!root.data.running) {
+                                    root.send();
+                                }
+                                return accept;
+                            }
+                            return reject;
+                        }
+                    }
+
+                    if root.draft == "" && !input.has-focus: Text {
+                        x: 8px;
+                        y: 6px;
+                        width: parent.width - 16px;
+                        text: I18n.t("assistant.placeholder");
+                        color: Theme.fg-dim;
+                        font-size: Theme.fs;
+                        overflow: elide;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: end;
+                    if !root.data.running: Button {
+                        label: I18n.t("assistant.send");
+                        primary: true;
+                        enabled: root.draft != "" && root.data.configured;
+                        clicked => { root.send(); }
+                    }
+                    if root.data.running: Button {
+                        label: I18n.t("assistant.stop");
+                        glyph: Glyph.stop;
+                        clicked => { root.stop(); }
+                    }
+                }
+            }
+        }
+    }
+}

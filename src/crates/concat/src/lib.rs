@@ -104,6 +104,7 @@ mod wayland_drop {
 use dock::{Dock, SEAT_MIN_GRAB, SEAT_MIN_H, SEAT_MIN_W};
 use host::{Host, Shell};
 use panes::Msg;
+use panes::assistant::AssistantMsg;
 use panes::captions::CaptionsMsg;
 use panes::export::ExportMsg;
 use panes::media_bin::MediaMsg;
@@ -605,6 +606,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
         app.global::<Sounds>()
             .set_styles(ModelRc::from(models.voice_styles.clone()));
         app.set_voiceover_devices(ModelRc::from(models.voiceover_devices.clone()));
+        app.set_assistant_lines(ModelRc::from(models.assistant_lines.clone()));
         app.set_app_menu_items(ModelRc::from(models.bar.clone()));
         app.set_transcribers(ModelRc::from(models.transcribers.clone()));
         app.set_voices(ModelRc::from(models.voices.clone()));
@@ -2395,6 +2397,44 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
     }));
     editor.on_record_voiceover(on_window!(|state| {
         state.handle(Msg::Voiceover(VoiceoverMsg::Toggle));
+    }));
+    app.on_assistant_toggle(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Toggle));
+    }));
+    app.on_assistant_closed(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Close));
+    }));
+    app.on_assistant_open_settings(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::OpenSettings));
+    }));
+    app.on_assistant_test(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Test));
+    }));
+    app.on_assistant_open_rules(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::OpenRules));
+    }));
+    app.on_assistant_clear(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Clear));
+    }));
+    app.on_assistant_base_url_edited(on_window!(|state, text: SharedString| {
+        state.handle(Msg::Assistant(AssistantMsg::BaseUrlEdited(
+            text.to_string(),
+        )));
+    }));
+    app.on_assistant_api_key_edited(on_window!(|state, text: SharedString| {
+        state.handle(Msg::Assistant(AssistantMsg::ApiKeyEdited(text.to_string())));
+    }));
+    app.on_assistant_model_edited(on_window!(|state, text: SharedString| {
+        state.handle(Msg::Assistant(AssistantMsg::ModelEdited(text.to_string())));
+    }));
+    app.on_assistant_draft_edited(on_window!(|state, text: SharedString| {
+        state.handle(Msg::Assistant(AssistantMsg::DraftEdited(text.to_string())));
+    }));
+    app.on_assistant_send(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Send));
+    }));
+    app.on_assistant_stop(on_window!(|state| {
+        state.handle(Msg::Assistant(AssistantMsg::Stop));
     }));
     app.on_voiceover_closed(on_window!(|state| {
         state.handle(Msg::Voiceover(VoiceoverMsg::Close));

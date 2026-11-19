@@ -175,8 +175,10 @@ export component CaptionsForm inherits VerticalLayout {
             }
         }
 
-        if !root.data.running && !root.from-voice: DialogSection {
-            title: I18n.t("common.script");
+        // With the voice on, a script is optional: given, the captions
+        // are its words at the times heard (concat_speech::align).
+        if !root.data.running: DialogSection {
+            title: root.from-voice ? I18n.t("captions.scriptToCorrect") : I18n.t("common.script");
 
             // Scrolls past its bottom and is drawn taller by its corner.
             script-box := ResizeBox {
@@ -216,7 +218,9 @@ export component CaptionsForm inherits VerticalLayout {
                 if root.draft == "" && !script.has-focus: Text {
                     x: 0;
                     y: script-box.pad-y;
-                    text: I18n.t("captions.typeWordsPutScreen");
+                    text: root.from-voice
+                        ? I18n.t("captions.pasteScriptToCorrect")
+                        : I18n.t("captions.typeWordsPutScreen");
                     color: Theme.fg-dim;
                     font-size: Theme.fs-lg;
                 }

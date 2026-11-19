@@ -17,6 +17,7 @@
 //! (whisper.cpp, and ONNX Runtime for Chatterbox) stay out of everything
 //! that does not speak.
 
+pub mod align;
 #[cfg(feature = "chatterbox")]
 pub mod chatterbox;
 #[cfg(feature = "isolate")]

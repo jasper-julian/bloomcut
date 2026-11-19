@@ -507,6 +507,11 @@ impl Studio {
                 pane.update(msg, self);
                 self.voiceover = pane;
             }
+            crate::panes::Msg::Assistant(msg) => {
+                let mut pane = std::mem::take(&mut self.assistant);
+                pane.update(msg, self);
+                self.assistant = pane;
+            }
             crate::panes::Msg::Sounds(msg) => {
                 let mut pane = std::mem::take(&mut self.sounds);
                 pane.update(msg, self);

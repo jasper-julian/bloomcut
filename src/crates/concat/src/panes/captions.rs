@@ -94,6 +94,9 @@ struct Subject {
     /// the sound in: what the run's timing is kept by.
     model: String,
     windows: f32,
+    /// The script the sheet held when the run began, if any: the
+    /// captions are then its words, timed by what was heard.
+    script: Option<String>,
 }
 
 /// Seconds whisper takes over one thirty-second window, per megabyte of
@@ -243,6 +246,34 @@ impl CaptionsPane {
                         let Some(subject) = subject else {
                             return;
                         };
+                        // A script given: its words, at the times heard.
+                        let mut checked = None;
+                        let segments = match subject.script.as_deref() {
+                            None => segments,
+                            Some(_) if segments.is_empty() => segments,
+                            Some(script) => {
+                                match concat_speech::align::to_script(&segments, script) {
+                                    Ok(aligned) => {
+                                        log::info!(
+                                            "captions: {} heard lines set in a script's {} phrases · {:.0}% heard as written · {} unheard",
+                                            segments.len(),
+                                            aligned.segments.len() + aligned.unheard.len(),
+                                            aligned.matched * 100.0,
+                                            aligned.unheard.len()
+                                        );
+                                        for phrase in &aligned.unheard {
+                                            log::info!("captions: not heard, left out: {phrase}");
+                                        }
+                                        checked = Some((aligned.matched, aligned.unheard.len()));
+                                        aligned.segments
+                                    }
+                                    Err(error) => {
+                                        self.message = error;
+                                        return;
+                                    }
+                                }
+                            }
+                        };
                         let look = subject.look;
                         let (base, font) = caption_base(studio);
                         let commands: Vec<Command> = segments
@@ -274,7 +305,30 @@ impl CaptionsPane {
                             studio.apply(Command::Batch {
                                 commands: font.into_iter().chain(commands).collect(),
                             });
-                            studio.notify(&tf("captions.addedCaptions", &[&count]), false);
+                            match checked {
+                                None => {
+                                    studio.notify(&tf("captions.addedCaptions", &[&count]), false)
+                                }
+                                Some((matched, unheard)) => {
+                                    let percent = (matched * 100.0).round() as i32;
+                                    // Under half heard as written is
+                                    // another script, or another clip.
+                                    let doubtful = matched < 0.5;
+                                    let mut note = tf(
+                                        if doubtful {
+                                            "captions.scriptMismatch"
+                                        } else {
+                                            "captions.alignedToScript"
+                                        },
+                                        &[&count, &percent],
+                                    );
+                                    if unheard > 0 {
+                                        note.push_str(" · ");
+                                        note.push_str(&tf("captions.scriptUnheard", &[&unheard]));
+                                    }
+                                    studio.notify(&note, doubtful);
+                                }
+                            }
                         }
                     }
                     // Asked for: the sheet is already on its way down.
@@ -625,6 +679,7 @@ impl CaptionsPane {
             look: self.look(),
             model,
             windows,
+            script: Some(self.text.trim().to_owned()).filter(|script| !script.is_empty()),
         });
         self.running = true;
         self.message.clear();
