@@ -2585,6 +2585,13 @@ impl Studio {
                     !self.timeline().clips.is_empty(),
                 ),
                 row(
+                    "jianying",
+                    t("studio.exportJianying"),
+                    Glyph::Export,
+                    "",
+                    !self.timeline().clips.is_empty(),
+                ),
+                row(
                     "template",
                     t("studio.saveAsTemplate"),
                     Glyph::Slot,

@@ -507,6 +507,62 @@ impl Studio {
         self.ensure_regions();
     }
 
+    /// File > 导出到剪映: the timeline as a new draft in 剪映's drafts
+    /// folder - the one picked before, else the one 剪映's settings name,
+    /// else one asked for now and remembered.
+    pub fn export_to_jianying(&mut self) {
+        if self.session.is_none() {
+            return;
+        }
+        let drafts = self
+            .prefs
+            .jianying_drafts
+            .clone()
+            .map(std::path::PathBuf::from)
+            .filter(|folder| folder.is_dir())
+            .or_else(concat_host::jianying::drafts_folder);
+        if let Some(drafts) = drafts {
+            self.write_jianying(&drafts);
+            return;
+        }
+        let title = crate::i18n::t("jianying.chooseFolder");
+        crate::host::after_dialog(
+            move || crate::platform::pick_folder(&title, ""),
+            |studio, _, _, folder| {
+                studio.prefs.jianying_drafts = Some(folder.to_string_lossy().into_owned());
+                studio.prefs.save(&studio.host.dirs);
+                studio.write_jianying(&folder);
+            },
+        );
+    }
+
+    /// Writes the draft into `drafts` and says how it went.
+    fn write_jianying(&mut self, drafts: &std::path::Path) {
+        let Some(session) = self.session.as_ref() else {
+            return;
+        };
+        let name = self.project_name.clone();
+        match concat_host::jianying::export(session.project(), &name, drafts) {
+            Ok(written) if written.notes.is_empty() => {
+                self.notify(
+                    &crate::i18n::tf("jianying.exported", &[&written.name]),
+                    false,
+                );
+            }
+            Ok(written) => {
+                let left = written.notes.join("、");
+                self.notify(
+                    &crate::i18n::tf("jianying.exportedSome", &[&written.name, &left]),
+                    false,
+                );
+            }
+            Err(error) => {
+                log::warn!("jianying: the export failed: {error}");
+                self.notify(&crate::i18n::tf("jianying.failed", &[&error]), true);
+            }
+        }
+    }
+
     pub fn undo(&mut self) {
         self.flush_commit();
         self.echo = None;

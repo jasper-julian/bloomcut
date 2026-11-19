@@ -2624,6 +2624,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
                             },
                         ),
                         "export" => state.handle(Msg::Export(ExportMsg::Open)),
+                        "jianying" => state.export_to_jianying(),
                         "template" => state.save_template(),
                         "speech" => state.handle(Msg::Speech(SpeechMsg::Open)),
                         "clear-cache" => state.clear_project_cache(),

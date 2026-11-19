@@ -172,6 +172,9 @@ pub struct Preferences {
     /// The AI assistant's language model; see `crate::panes::assistant`.
     #[serde(default)]
     pub assistant: AssistantPrefs,
+    /// 剪映's drafts folder, when it was picked by hand because it could not
+    /// be found; see `Studio::export_to_jianying`.
+    pub jianying_drafts: Option<String>,
 }
 
 /// The language model the AI assistant talks to: any service that speaks

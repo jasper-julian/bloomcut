@@ -325,7 +325,8 @@ mod tests {
     #[test]
     fn the_former_identifiers_folder_is_adopted() {
         for (n, id) in FORMER_IDENTIFIERS.iter().enumerate() {
-            let root = std::env::temp_dir().join(format!("concat-adopt-{}-{n}", std::process::id()));
+            let root =
+                std::env::temp_dir().join(format!("concat-adopt-{}-{n}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             let former = root.join(id);
             std::fs::create_dir_all(former.join("voices")).unwrap();

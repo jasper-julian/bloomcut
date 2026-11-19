@@ -27,6 +27,7 @@ pub mod commands;
 mod consolidate_tests;
 pub mod doc;
 pub mod editor;
+pub mod jianying;
 pub mod model;
 pub mod placement;
 pub mod runs;
