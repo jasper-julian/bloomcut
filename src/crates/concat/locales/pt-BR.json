@@ -7,6 +7,8 @@
   "assistant.clear": "Clear the conversation",
   "assistant.model": "Language model",
   "assistant.close": "Close",
+  "app.name": "BloomCut",
+  "start.sourceCode": "Source code",
   "lib.updateReminder": "BloomCut {0} is out: open Settings › Version and press Install to update.",
   "studio.exportJianying": "Export to 剪映",
   "jianying.chooseFolder": "Choose 剪映's drafts folder",

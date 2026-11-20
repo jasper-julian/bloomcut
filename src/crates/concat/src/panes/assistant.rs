@@ -500,9 +500,10 @@ fn converse(
     let mut tools = tool_specs(toolbox);
     tools.extend(local::specs());
     let system = if rules.is_empty() {
-        SYSTEM.to_owned()
+        concat_host::brand::BRAND.named(SYSTEM)
     } else {
-        format!("{SYSTEM}\n\nThe person's own rules, which come before your habits:\n\n{rules}")
+        let named = concat_host::brand::BRAND.named(SYSTEM);
+        format!("{named}\n\nThe person's own rules, which come before your habits:\n\n{rules}")
     };
     let mut backend = WindowBackend {
         path: path.to_owned(),

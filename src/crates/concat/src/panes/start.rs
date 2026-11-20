@@ -104,6 +104,15 @@ pub const REPOSITORY: &str = "https://github.com/jasper-julian/bloomcut";
 /// repository - or the repository's, and None for a name nobody sends.
 /// "shortcuts" is not here: it opens Settings, not a page.
 pub fn link(name: &str) -> Option<String> {
+    // The school's edition sends every link to its own download page,
+    // where its guides, its notes and its source are.
+    if cfg!(feature = "school") {
+        return matches!(
+            name,
+            "guides" | "first-edit" | "report" | "github" | "news" | "release-notes"
+        )
+        .then(|| concat_host::brand::BRAND.page_url());
+    }
     Some(match name {
         "guides" | "first-edit" => format!("{REPOSITORY}#readme"),
         "report" => format!("{REPOSITORY}/issues"),
@@ -203,12 +212,13 @@ fn default_location() -> String {
 /// `~/Desktop` there is a folder the app is not allowed to make, and every
 /// new project failed with EPERM. https://github.com/jub0t/Concat/issues/299
 fn location_on(os: &str, desktop: Option<PathBuf>, home: impl Fn(&str) -> String) -> String {
+    let name = concat_host::brand::BRAND.name;
     match os {
-        "android" => home("BloomCut"),
-        "ios" => home("Documents/BloomCut"),
+        "android" => home(name),
+        "ios" => home(&format!("Documents/{name}")),
         _ => desktop
-            .map(|desktop| desktop.join("BloomCut").to_string_lossy().into_owned())
-            .unwrap_or_else(|| home("Desktop/BloomCut")),
+            .map(|desktop| desktop.join(name).to_string_lossy().into_owned())
+            .unwrap_or_else(|| home(&format!("Desktop/{name}"))),
     }
 }
 
@@ -616,6 +626,7 @@ mod tests {
     /// An iPhone's projects go in its Documents, whatever a desktop would
     /// have said; a desktop's go on the desktop the system names.
     #[test]
+    #[cfg(not(feature = "school"))]
     fn each_platform_has_a_place_for_new_projects() {
         let home = |name: &str| format!("/home/{name}");
         let desktop = || Some(PathBuf::from("/desk"));
@@ -697,6 +708,7 @@ mod tests {
     /// Every link the launch screen sends goes somewhere, and the release
     /// notes are this build's tag.
     #[test]
+    #[cfg(not(feature = "school"))]
     fn every_link_has_an_address() {
         for name in [
             "guides",

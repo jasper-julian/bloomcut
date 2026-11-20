@@ -21,15 +21,16 @@
 
 use std::path::{Path, PathBuf};
 
-/// The app identifier, which is also the folder name everywhere: BloomCut's
-/// own since the rename of 2026-11-19.
-pub const IDENTIFIER: &str = "app.bloomcut.editor";
+/// The app identifier, which is also the folder name everywhere: the
+/// edition's own (`crate::brand`), BloomCut's `app.bloomcut.editor` since
+/// the rename of 2026-11-19.
+pub const IDENTIFIER: &str = crate::brand::BRAND.identifier;
 
 /// The identifiers earlier builds kept their folders under, newest first:
 /// the one every build before the rename to BloomCut used, and the one
 /// builds of upstream `main` used between 2026-10-26 and 2026-11-04.
 /// [`adopt`] moves the first it finds to [`IDENTIFIER`].
-const FORMER_IDENTIFIERS: [&str; 2] = ["app.concat.editor", "org.standalones.concat"];
+const FORMER_IDENTIFIERS: &[&str] = crate::brand::BRAND.former_identifiers;
 
 /// The app's own directories on this machine.
 #[derive(Clone, Debug)]
@@ -323,6 +324,10 @@ mod tests {
     /// A folder under either former identifier moves to the new name with
     /// everything in it, once, and its old path still reaches it.
     #[test]
+    #[cfg_attr(
+        feature = "school",
+        ignore = "the school's edition has no former folders"
+    )]
     fn the_former_identifiers_folder_is_adopted() {
         for (n, id) in FORMER_IDENTIFIERS.iter().enumerate() {
             let root =
@@ -352,7 +357,7 @@ mod tests {
 
     /// Models kept on another drive behind a link inside the old folder -
     /// a junction on Windows - are still found through the new name.
-    #[cfg(windows)]
+    #[cfg(all(windows, not(feature = "school")))]
     #[test]
     fn a_linked_models_folder_moves_with_its_link() {
         let root = std::env::temp_dir().join(format!("concat-adopt-link-{}", std::process::id()));

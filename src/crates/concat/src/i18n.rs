@@ -242,9 +242,11 @@ pub fn current() -> String {
 /// `key` in the interface's language: its translation, else its English,
 /// else - a key nothing lists - the key itself.
 pub fn t(key: &str) -> String {
-    translated(key)
+    let text = translated(key)
         .or_else(|| english().by_key.get(key).cloned())
-        .unwrap_or_else(|| key.to_owned())
+        .unwrap_or_else(|| key.to_owned());
+    // The words name the product "BloomCut"; the edition says its own name.
+    concat_host::brand::BRAND.named(&text)
 }
 
 /// The active language's line for `key`, if it has one.

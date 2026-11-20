@@ -42,16 +42,11 @@ pub const REPO: &str = "jasper-julian/bloomcut";
 /// come back from, so the earliest one offered.
 pub const FIRST_SWITCHABLE: Version = Version::new(0, 2, 5);
 
-/// The site BloomCut is published on: its download page is `/bloomcut`.
-pub const SITE: &str = "https://bloom.bloomaigc.com";
+/// The site this edition is published on (`crate::brand`).
+pub const SITE: &str = crate::brand::BRAND.site;
 
-/// The update feed: the newest release, its installer's size and digest.
-/// Served by the site from the TOS bucket the installer is kept in, so a
-/// check never leaves China and never meets GitHub's rate limit.
-pub const FEED_URL: &str = "https://bloom.bloomaigc.com/api/v1/bloom/bloomcut/latest";
-
-/// The installer's name in the feed's folder, and on disk once fetched.
-const SETUP_FILE: &str = "BloomCut-Setup.exe";
+/// The installer's name on disk once fetched.
+const SETUP_FILE: &str = crate::brand::BRAND.setup_file;
 
 /// What a download that was stopped says.
 pub const CANCELLED: &str = "the download was cancelled";
@@ -200,7 +195,9 @@ pub fn releases_from_feed(json: &str) -> Result<Vec<Release>, String> {
     if sha256.len() != 64 || !sha256.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err("the update feed names no digest for the installer".to_owned());
     }
-    let download = text("download").unwrap_or("/api/v1/bloom/bloomcut/download");
+    let Some(download) = text("download") else {
+        return Err("the update feed names no download address".to_owned());
+    };
     let url = if download.starts_with("https://") {
         download.to_owned()
     } else {
@@ -229,7 +226,7 @@ pub fn releases_from_feed(json: &str) -> Result<Vec<Release>, String> {
 /// Asks the site for the newest release; see [`releases_from_feed`]. A site
 /// that has published nothing yet answers 404, which is no releases.
 pub fn fetch_releases() -> Result<Vec<Release>, String> {
-    match get_text(FEED_URL) {
+    match get_text(&crate::brand::BRAND.feed_url()) {
         Ok(json) => releases_from_feed(&json),
         Err(error) if error.contains("404") => Ok(Vec::new()),
         Err(error) => Err(error),
@@ -482,7 +479,10 @@ pub fn fetch_package(release: &Release, kind: PackageKind) -> Result<Package, St
     if let Some(package) = &release.package {
         return match kind {
             PackageKind::Setup => Ok(package.clone()),
-            _ => Err("BloomCut is published as a Windows installer only".to_owned()),
+            _ => Err(format!(
+                "{} is published as a Windows installer only",
+                crate::brand::BRAND.name
+            )),
         };
     }
     package_from_manifest(
@@ -777,7 +777,7 @@ fn detach(command: &mut Command) -> Result<(), String> {
 /// One GET, read whole as text. GitHub wants a user agent and says so with
 /// a 403 otherwise.
 fn get_text(url: &str) -> Result<String, String> {
-    let agent = format!("BloomCut/{}", Version::current());
+    let agent = format!("{}/{}", crate::brand::BRAND.agent, Version::current());
     let response = crate::net::get(
         url,
         std::time::Duration::from_secs(20),
@@ -989,6 +989,7 @@ mod tests {
     /// The site's feed is one release with its installer, the download
     /// address made whole; a feed without a digest is refused.
     #[test]
+    #[cfg(not(feature = "school"))]
     fn the_feed_is_the_newest_release_with_its_installer() {
         let feed = r#"{"version":"0.3.0","bytes":1624968916,"sha256":"627C6C539F2B231A8F47A601FDE9A2694868BECB8ABA698176B72AE5573556B6","notes":"","published":"2026-11-20T10:00:00+00:00","source":"","download":"/api/v1/bloom/bloomcut/download"}"#;
         let releases = releases_from_feed(feed).expect("reads");

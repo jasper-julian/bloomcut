@@ -573,13 +573,14 @@ pub fn select_backend(
 pub fn report_startup_failure(error: &str) {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        let mut description = format!("BloomCut could not start.\n\n{error}");
+        let name = concat_host::brand::BRAND.name;
+        let mut description = format!("{name} could not start.\n\n{error}");
         if let Some(path) = concat_host::logs::current() {
             description.push_str(&format!("\n\nLog: {}", path.display()));
         }
         rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Error)
-            .set_title("BloomCut")
+            .set_title(name)
             .set_description(description)
             .set_buttons(rfd::MessageButtons::Ok)
             .show();

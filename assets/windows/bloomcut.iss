@@ -15,7 +15,7 @@
 ; Rules:  the *.md files for Settings > AI assistant > Rules.
 ;
 ; Per user, no administrator: the models go to the user's own
-; %LOCALAPPDATA%\app.bloomcut.editor and the rules to %APPDATA%, where the
+; %LOCALAPPDATA%\{#DataId} and the rules to %APPDATA%, where the
 ; app reads them; a machine-wide install would have no single user's
 ; folders to put them in.
 
@@ -34,28 +34,53 @@
 #ifndef Out
   #define Out "."
 #endif
+; The edition (concat_host::brand): BloomCut unless told otherwise. The
+; school's edition passes /DAppName=AI自动剪辑工具 /DExeName=AI自动剪辑工具.exe
+; /DDataId=app.aiclip.editor /DSetupName=AI-Clip-Setup /DAppGuid=... /DSite=...
+; /DAdopt=0.
+#ifndef AppName
+  #define AppName "BloomCut"
+#endif
+#ifndef ExeName
+  #define ExeName "BloomCut.exe"
+#endif
+#ifndef DataId
+  #define DataId "app.bloomcut.editor"
+#endif
+#ifndef SetupName
+  #define SetupName "BloomCut-Setup"
+#endif
+#ifndef AppGuid
+  #define AppGuid "5C2E9A41-7D3B-4E8F-A1C6-93B0D4E7F2A8"
+#endif
+#ifndef Site
+  #define Site "https://github.com/jasper-julian/bloomcut"
+#endif
+#ifndef Adopt
+  #define Adopt "1"
+#endif
 
 [Setup]
 ; Its own id, so it neither upgrades nor is upgraded by the upstream app.
-AppId={{5C2E9A41-7D3B-4E8F-A1C6-93B0D4E7F2A8}
-AppName=BloomCut
+AppId={{{#AppGuid}}
+AppName={#AppName}
 AppVersion={#Version}
-AppVerName=BloomCut {#Version}
-AppPublisher=BloomCut
-AppPublisherURL=https://github.com/jasper-julian/bloomcut
-AppSupportURL=https://github.com/jasper-julian/bloomcut/issues
-AppUpdatesURL=https://github.com/jasper-julian/bloomcut/releases
-DefaultDirName={autopf}\BloomCut
+AppVerName={#AppName} {#Version}
+AppPublisher={#AppName}
+AppPublisherURL={#Site}
+AppSupportURL={#Site}
+AppUpdatesURL={#Site}
+DefaultDirName={autopf}\{#AppName}
 ; Not the folder an earlier build under another name went to.
 UsePreviousAppDir=no
-DefaultGroupName=BloomCut
+DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir={#Out}
-OutputBaseFilename=BloomCut-Setup
+OutputBaseFilename={#SetupName}
 SetupIconFile=..\icons\concat.ico
-UninstallDisplayIcon={app}loomcut.ico
-UninstallDisplayName=BloomCut
+UninstallDisplayIcon={app}\app.ico
+UninstallDisplayName={#AppName}
 ; The models are already compressed; a solid archive of them costs minutes
 ; for little.
 Compression=lzma2/fast
@@ -77,20 +102,20 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\icons\concat.ico"; DestDir: "{app}"; DestName: "bloomcut.ico"; Flags: ignoreversion
+Source: "..\icons\concat.ico"; DestDir: "{app}"; DestName: "app.ico"; Flags: ignoreversion
 ; The models, where the app's Settings would have downloaded them.
-Source: "{#Models}\whisper-models\*"; DestDir: "{localappdata}\app.bloomcut.editor\whisper-models"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#Models}\tts-models\*"; DestDir: "{localappdata}\app.bloomcut.editor\tts-models"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#Models}\whisper-models\*"; DestDir: "{localappdata}\{#DataId}\whisper-models"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#Models}\tts-models\*"; DestDir: "{localappdata}\{#DataId}\tts-models"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; The rules: a colleague's own edits to a file of the same name are kept.
-Source: "{#Rules}\*"; DestDir: "{userappdata}\app.bloomcut.editor\assistant-rules"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "{#Rules}\*"; DestDir: "{userappdata}\{#DataId}\assistant-rules"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\BloomCut"; Filename: "{app}\BloomCut.exe"; IconFilename: "{app}loomcut.ico"
-Name: "{autoprograms}\BloomCut (safe graphics)"; Filename: "{app}\BloomCut.exe"; Parameters: "--software"; IconFilename: "{app}loomcut.ico"
-Name: "{autodesktop}\BloomCut"; Filename: "{app}\BloomCut.exe"; IconFilename: "{app}loomcut.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#ExeName}"; IconFilename: "{app}\app.ico"
+Name: "{autoprograms}\{#AppName} (safe graphics)"; Filename: "{app}\{#ExeName}"; Parameters: "--software"; IconFilename: "{app}\app.ico"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#ExeName}"; IconFilename: "{app}\app.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\BloomCut.exe"; Description: "{cm:LaunchProgram,BloomCut}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#ExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 // A copy installed before the rename to BloomCut kept its models, settings
@@ -105,7 +130,7 @@ var
   Code: Integer;
 begin
   Old := AddBackslash(Base) + 'app.concat.editor';
-  New := AddBackslash(Base) + 'app.bloomcut.editor';
+  New := AddBackslash(Base) + '{#DataId}';
   if DirExists(Old) and not DirExists(New) then
   begin
     if RenameFile(Old, New) then
@@ -117,7 +142,9 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssInstall then
+  // Only BloomCut moves a folder from before its rename; another edition
+  // never touches a folder that is not its own.
+  if (CurStep = ssInstall) and ('{#Adopt}' = '1') then
   begin
     Adopt(ExpandConstant('{localappdata}'));
     Adopt(ExpandConstant('{userappdata}'));

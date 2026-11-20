@@ -7,6 +7,8 @@
   "assistant.clear": "清除對話",
   "assistant.model": "大模型設定",
   "assistant.close": "關閉",
+  "app.name": "BloomCut",
+  "start.sourceCode": "原始碼",
   "lib.updateReminder": "發現新版本 BloomCut {0}：打開 設定 › 版本，點「安裝」即可更新。",
   "studio.exportJianying": "匯出到剪映",
   "jianying.chooseFolder": "選擇剪映的草稿資料夾",

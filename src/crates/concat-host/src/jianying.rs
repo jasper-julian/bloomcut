@@ -96,7 +96,11 @@ pub fn export(project: &Project, name: &str, drafts: &Path) -> Result<Written, S
         })
         .collect();
     let base = base.trim().trim_end_matches('.');
-    let base = if base.is_empty() { "BloomCut" } else { base };
+    let base = if base.is_empty() {
+        crate::brand::BRAND.name
+    } else {
+        base
+    };
     let (name, folder) = (1..1000)
         .map(|n| {
             if n == 1 {

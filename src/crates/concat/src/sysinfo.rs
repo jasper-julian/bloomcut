@@ -80,7 +80,11 @@ pub fn system_facts() -> Vec<(String, String)> {
     let mut facts = vec![
         (
             t("sysinfo.application"),
-            format!("BloomCut {}", env!("CARGO_PKG_VERSION")),
+            format!(
+                "{} {}",
+                concat_host::brand::BRAND.name,
+                env!("CARGO_PKG_VERSION")
+            ),
         ),
         (
             t("sysinfo.build"),

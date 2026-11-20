@@ -111,12 +111,18 @@ fn main() {
         let icon = "../../../assets/icons/concat.ico";
         println!("cargo:rerun-if-changed={icon}");
         // The file's name and description as Windows shows them in its
-        // properties, and as code signing checks them: "Concat" in every
-        // build, where the default would be the crate's lower-case name.
+        // properties and in Task Manager: the edition's name (see
+        // concat_host::brand), where the default would be the crate's.
+        println!("cargo:rerun-if-env-changed=CARGO_FEATURE_SCHOOL");
+        let product = if std::env::var_os("CARGO_FEATURE_SCHOOL").is_some() {
+            "AI自动剪辑工具"
+        } else {
+            "BloomCut"
+        };
         winresource::WindowsResource::new()
             .set_icon(icon)
-            .set("ProductName", "Concat")
-            .set("FileDescription", "Concat")
+            .set("ProductName", product)
+            .set("FileDescription", product)
             .set(
                 "LegalCopyright",
                 "Copyright 2026 Jareer Abdullah, AGPL-3.0-or-later",
